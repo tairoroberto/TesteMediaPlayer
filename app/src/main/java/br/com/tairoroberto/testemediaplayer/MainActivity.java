@@ -1,9 +1,14 @@
 package br.com.tairoroberto.testemediaplayer;
 
 import android.annotation.TargetApi;
+import android.content.pm.FeatureGroupInfo;
 import android.content.res.AssetFileDescriptor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.AudioManager;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.os.PersistableBundle;
@@ -13,10 +18,14 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.MediaController;
 import android.widget.TextView;
+import android.widget.VideoView;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 
 
 public class MainActivity extends ActionBarActivity implements MediaPlayer.OnPreparedListener,
@@ -26,6 +35,7 @@ public class MainActivity extends ActionBarActivity implements MediaPlayer.OnPre
                                                                MediaPlayer.OnErrorListener{
     private MediaPlayer player;
     private MediaPlayer nextPlayer;
+    private VideoView videoPlayer;
     private TextView txtTime;
     private long currentTime;
     private long duration;
@@ -97,43 +107,59 @@ public class MainActivity extends ActionBarActivity implements MediaPlayer.OnPre
         if(player == null){
 
             try {
-                /*//get music from raw folder
-                player = MediaPlayer.create(MainActivity.this,R.raw.linkin_park_figure_09);
-                player.start();*/
+                //get music from raw folder
+                /*player = MediaPlayer.create(MainActivity.this,R.raw.linkin_park_figure_09);
+                player.start();
+                Uri uriRaw = Uri.parse("android.resource://"+getPackageName()+"/raw/linkin_park_figure_09");
+                acessMetadata(uriRaw);*/
 
-                /*//get music from SDCARD
+               /* //get music from SDCARD
                 File sdcard = Environment.getExternalStorageDirectory();
                 File file = new File(sdcard,"Music/03 - Red Hot Chili Peppers - Scar Tissue.mp3");
                 player = new MediaPlayer();
                 player.setDataSource(file.getAbsolutePath().toString());
-
-                //call the prepareSync to Syncronize file in backbround thread
-                player.prepareAsync();*/
-
-                //get next music from SDCARD
-                File sdcard = Environment.getExternalStorageDirectory();
-                File file = new File(sdcard,"Music/Red Hot Chili Peppers - Soul To Squeeze.mp3");
-                player = new MediaPlayer();
-                player.setDataSource(file.getAbsolutePath().toString());
-
                 //call the prepareSync to Syncronize file in backbround thread
                 player.prepareAsync();
+                //get metadata and image from music
+                acessMetadata(file.getAbsolutePath().toString());*/
+
+
+                //get next music from SDCARD
+                File sdcardNext = Environment.getExternalStorageDirectory();
+                File fileNext = new File(sdcardNext,"Music/Red Hot Chili Peppers - Soul To Squeeze.mp3");
+                nextPlayer = new MediaPlayer();
+                nextPlayer.setDataSource(fileNext.getAbsolutePath().toString());
+                //call the prepareSync to Syncronize file in backbround thread
+                nextPlayer.prepareAsync();
+                //get metadata and image from music
+                acessMetadata(fileNext.getAbsolutePath().toString());
+
 
                 //get music from URL
                 player = new MediaPlayer();
                 player.setAudioStreamType(AudioManager.STREAM_MUSIC);
                 player.setDataSource("http://www.tairoroberto.kinghost.net/packages/teste_webservice/02 Scar Tissue.mp3");
-
                 //call the prepareSync to Syncronize file in backbround thread
                 player.prepareAsync();
+                //get metadata and image from music
+                acessMetadata("http://www.tairoroberto.kinghost.net/packages/teste_webservice/02 Scar Tissue.mp3");
 
-                //get music from ASSETS
-                /*AssetFileDescriptor asset = getAssets().openFd("Musics/Scorpions - Cause I love you _ (www.sat98.in) .mp3");
+
+                //get Video from URL
+                videoPlayer = (VideoView)findViewById(R.id.videoView);
+                videoPlayer.setVideoURI(Uri.parse("http://www.tairoroberto.kinghost.net/packages/teste_webservice/Red_Hot_Chili_Peppers-Dani_California.3gp"));
+                videoPlayer.setMediaController(new MediaController(MainActivity.this));
+                videoPlayer.start();
+                acessMetadata("http://www.tairoroberto.kinghost.net/packages/teste_webservice/Red_Hot_Chili_Peppers-Dani_California.3gp");
+
+               /* //get music from ASSETS
+                AssetFileDescriptor asset = getAssets().openFd("Musics/Scorpions - Cause I love you _ (www.sat98.in) .mp3");
                 player = new MediaPlayer();
                 player.setDataSource(asset.getFileDescriptor(),asset.getStartOffset(),asset.getLength());
-
                 //call the prepareSync to Syncronize file in backbround thread
-                player.prepareAsync();*/
+                player.prepareAsync();
+                //get metadata and image from music
+                acessMetadata(asset);*/
 
                 //set the listeners to capture the events
                 player.setOnPreparedListener(this);
@@ -226,7 +252,7 @@ public class MainActivity extends ActionBarActivity implements MediaPlayer.OnPre
     @Override
     public void onBufferingUpdate(MediaPlayer mp, int percent) {
         //onBufferingUpdate is call every time, so not need call him
-        Log.i("Script","onBufferingUpdate(): percent: "+percent);
+        //Log.i("Script","onBufferingUpdate(): percent: "+percent);
     }
 
     @Override
@@ -264,5 +290,88 @@ public class MainActivity extends ActionBarActivity implements MediaPlayer.OnPre
     @Override
     public void onSeekComplete(MediaPlayer mp) {
         Log.i("Script","onSeekComplete()");
+    }
+
+    /********************************************************************************************/
+    /**                           Methods to acess music metadata                              */
+    /******************************************************************************************/
+
+    public void acessMetadata(String link){
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+
+        //verify the android version for prevent bug
+        if(Build.VERSION.SDK_INT >= 14){
+            retriever.setDataSource(link,new HashMap<String, String>());
+        }else{
+            retriever.setDataSource(link);
+        }
+        showMetaData(retriever);
+    }
+
+    public void acessMetadata(Uri uriRaw) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+
+        retriever.setDataSource(MainActivity.this,uriRaw);
+        showMetaData(retriever);
+    }
+
+    public void acessMetadata(AssetFileDescriptor asset) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+
+        retriever.setDataSource(asset.getFileDescriptor(),asset.getStartOffset(),asset.getLength());
+        showMetaData(retriever);
+    }
+
+    public void acessMetadata(File file) {
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+
+        retriever.setDataSource(file.getAbsolutePath().toString());
+        showMetaData(retriever);
+    }
+
+    private void showMetaData(MediaMetadataRetriever retriever) {
+        //verify if metadataRetriver is null
+        if (retriever != null){
+            Log.i("Script","METADATA_KEY_ALBUM "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM));
+            Log.i("Script","METADATA_KEY_ALBUMARTIST "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST));
+            Log.i("Script","METADATA_KEY_ARTIST "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST));
+            Log.i("Script","METADATA_KEY_AUTHOR "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_AUTHOR));
+            Log.i("Script","METADATA_KEY_BITRATE "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE));
+            Log.i("Script","METADATA_KEY_CD_TRACK_NUMBER "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER));
+            Log.i("Script","METADATA_KEY_COMPILATION "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPILATION));
+            Log.i("Script","METADATA_KEY_COMPOSER "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPOSER));
+            Log.i("Script","METADATA_KEY_DATE "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+            Log.i("Script","METADATA_KEY_DISC_NUMBER "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER));
+            Log.i("Script","METADATA_KEY_DURATION "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+            Log.i("Script","METADATA_KEY_GENRE "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE));
+            Log.i("Script","METADATA_KEY_HAS_VIDEO "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO));
+            Log.i("Script","METADATA_KEY_LOCATION "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION));
+            Log.i("Script","METADATA_KEY_MIMETYPE "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE));
+            Log.i("Script","METADATA_KEY_NUM_TRACKS "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_NUM_TRACKS));
+            Log.i("Script","METADATA_KEY_TITLE "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE));
+            Log.i("Script","METADATA_KEY_YEAR "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR));
+            Log.i("Script","METADATA_KEY_VIDEO_HEIGHT "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            Log.i("Script","METADATA_KEY_VIDEO_ROTATION "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION));
+            Log.i("Script","METADATA_KEY_VIDEO_WIDTH "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            Log.i("Script","METADATA_KEY_WRITER "+retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_WRITER));
+
+            //get byte array with picture
+            byte[] imgBytes = retriever.getEmbeddedPicture();
+            Bitmap bitmap;
+
+            //verify id imgBytes is null
+            if(imgBytes != null){
+                //get the image from imgBytes
+                bitmap = BitmapFactory.decodeByteArray(imgBytes,0,imgBytes.length);
+                ImageView imageView = (ImageView)findViewById(R.id.imageView);
+                imageView.setImageBitmap(bitmap);
+            }
+
+            bitmap = retriever.getFrameAtTime(14000,MediaMetadataRetriever.OPTION_CLOSEST);
+            if (bitmap != null){
+                ImageView imageFrame = (ImageView)findViewById(R.id.imageFrame);
+                imageFrame.setImageBitmap(bitmap);
+            }
+        }
     }
 }
